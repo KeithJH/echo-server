@@ -1,3 +1,4 @@
 BasedOnStyle: Microsoft
 UseTab: AlignWithSpaces
+AccessModifierOffset: 0
 AllowShortFunctionsOnASingleLine: true
