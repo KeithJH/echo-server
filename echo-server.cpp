@@ -15,12 +15,12 @@ int main()
 		return 1;
 	}
 
-	sockaddr_in serverAddress {};
+	sockaddr_in serverAddress{};
 	serverAddress.sin_family = AF_INET;
 	serverAddress.sin_port = htons(9090);
 	serverAddress.sin_addr.s_addr = INADDR_ANY;
 
-	if (::bind(socketFd, reinterpret_cast<sockaddr*>(&serverAddress), sizeof(serverAddress)) == -1)
+	if (::bind(socketFd, reinterpret_cast<sockaddr *>(&serverAddress), sizeof(serverAddress)) == -1)
 	{
 		printError("Could not bind to server socket\n");
 		::close(socketFd);
@@ -46,10 +46,11 @@ int main()
 	ssize_t readBytes = ::recv(clientFd, connectionBuffer, sizeof(connectionBuffer), 0);
 	for (; readBytes > 0; readBytes = ::recv(clientFd, connectionBuffer, sizeof(connectionBuffer), 0))
 	{
-		ssize_t writtenBytes {0};
+		ssize_t writtenBytes{0};
 		while (writtenBytes < readBytes)
 		{
-			ssize_t partialWrittenBytes = ::send(clientFd, connectionBuffer + writtenBytes, static_cast<size_t>(readBytes - writtenBytes), 0);
+			ssize_t partialWrittenBytes =
+				::send(clientFd, connectionBuffer + writtenBytes, static_cast<size_t>(readBytes - writtenBytes), 0);
 			if (partialWrittenBytes <= 0)
 			{
 				printError("Failed to send bytes to client\n");
