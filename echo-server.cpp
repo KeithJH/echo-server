@@ -1,7 +1,9 @@
 #include <cstdio>
+#include <filesystem>
 #include <memory>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
 
 void printInfo(const char *info) { std::fputs(info, stdout); }
@@ -56,14 +58,13 @@ class SocketClient
 
 	private:
 	int _clientFd;
-	char _buffer[1 << 20];	//TODO: This has potential for re-use
+	char _buffer[1 << 20]; // TODO: This has potential for re-use
 };
 
 class SocketServer
 {
 	public:
-	SocketServer() {}
-	~SocketServer()
+	virtual ~SocketServer()
 	{
 		if (_socketFd != -1)
 		{
@@ -71,37 +72,11 @@ class SocketServer
 			{
 				printError("Could not close server socket\n");
 			}
+			else
+			{
+				printInfo("Socket closed\n");
+			}
 		}
-	}
-
-	// TODO: Should be easy to add Unix Socket initialization as well
-	bool Initialize(unsigned int address, unsigned short port)
-	{
-		_socketFd = ::socket(AF_INET, SOCK_STREAM, 0);
-		if (_socketFd == -1)
-		{
-			printError("Could not create server socket\n");
-			return false;
-		}
-
-		sockaddr_in serverAddress{};
-		serverAddress.sin_family = AF_INET;
-		serverAddress.sin_port = htons(port);
-		serverAddress.sin_addr.s_addr = address;
-
-		if (::bind(_socketFd, reinterpret_cast<sockaddr *>(&serverAddress), sizeof(serverAddress)) == -1)
-		{
-			printError("Could not bind to server socket\n");
-			return false;
-		}
-
-		if (::listen(_socketFd, 0) == -1)
-		{
-			printError("Could not listen on server socket\n");
-			return false;
-		}
-
-		return true;
 	}
 
 	std::unique_ptr<SocketClient> AcceptClient()
@@ -116,15 +91,100 @@ class SocketServer
 		return std::make_unique<SocketClient>(clientFd);
 	}
 
-	private:
+	protected:
+	bool InternalInitialize(const sockaddr *socketAddress, const socklen_t socketAddressSize)
+	{
+		if (::bind(_socketFd, socketAddress, socketAddressSize) == -1)
+		{
+			printError("Could not bind to server socket\n");
+			return false;
+		}
+
+		if (::listen(_socketFd, 0) == -1)
+		{
+			printError("Could not listen on server socket\n");
+			return false;
+		}
+
+		return true;
+	}
+
 	int _socketFd = -1;
+};
+
+class InetSocketServer : public SocketServer
+{
+	public:
+	bool Initialize(unsigned int address, unsigned short port)
+	{
+		_socketFd = ::socket(AF_INET, SOCK_STREAM, 0);
+		if (_socketFd == -1)
+		{
+			printError("Could not create server socket\n");
+			return false;
+		}
+
+		sockaddr_in serverAddress{};
+		serverAddress.sin_family = AF_INET;
+		serverAddress.sin_port = htons(port);
+		serverAddress.sin_addr.s_addr = address;
+
+		return InternalInitialize(reinterpret_cast<sockaddr *>(&serverAddress), sizeof(serverAddress));
+	}
+};
+
+class UnixSocketServer : public SocketServer
+{
+	public:
+	UnixSocketServer(std::filesystem::path path) : _socketPath(path) {}
+	virtual ~UnixSocketServer()
+	{
+		if (!_socketPath.empty())
+		{
+			if (::unlink(_socketPath.c_str()) == -1)
+			{
+				printError("Could not unlink socket path\n");
+			}
+			else
+			{
+				printInfo("Unix socket unlinked\n");
+			}
+		}
+	}
+
+	bool Initialize()
+	{
+		_socketFd = ::socket(AF_UNIX, SOCK_STREAM, 0);
+		if (_socketFd == -1)
+		{
+			printError("Could not create server socket\n");
+			return false;
+		}
+
+		sockaddr_un serverAddress{};
+		serverAddress.sun_family = AF_UNIX;
+
+		std::string_view pathStringView{_socketPath.native()};
+		strncpy(serverAddress.sun_path, pathStringView.data(), pathStringView.length());
+
+		return InternalInitialize(reinterpret_cast<sockaddr *>(&serverAddress), sizeof(serverAddress));
+	}
+
+	private:
+	std::filesystem::path _socketPath;
 };
 
 int main()
 {
-	SocketServer server{};
+#if 0
+	UnixSocketServer server{std::filesystem::path{"/dev/shm/my.sock"}};
+	if (!server.Initialize())
+		return 1;
+#else
+	InetSocketServer server{};
 	if (!server.Initialize(INADDR_ANY, 9090))
 		return 1;
+#endif
 
 	// TODO: Loop over multiple clients, with a signal to quit
 	{
