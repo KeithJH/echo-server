@@ -7,4 +7,4 @@ project(EchoServer CXX)
 
 include(./Common.cmake)
 
-add_executable(echo-server echo-server.cpp)
+add_executable(echo-server echo-server.cpp util.cpp SocketClient.cpp SocketServer.cpp)
