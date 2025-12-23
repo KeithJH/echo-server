@@ -1,4 +1,5 @@
-out
-perf.data*
 .cache/
+build/
+out/
 compile_commands.json
+perf.data*
