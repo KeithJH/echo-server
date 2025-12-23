@@ -1,3 +1,5 @@
+#include <EchoServer/SocketClient.hpp>
+#include <EchoServer/SocketServer.hpp>
 #include <cstdio>
 #include <filesystem>
 #include <memory>
@@ -5,9 +7,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
-
-#include "SocketClient.hpp"
-#include "SocketServer.hpp"
 
 int main()
 {

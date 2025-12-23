@@ -1,0 +1,2 @@
+add_subdirectory(EchoServerLib)
+add_subdirectory(EchoServerCli)

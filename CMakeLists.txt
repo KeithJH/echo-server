@@ -5,6 +5,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(EchoServer CXX)
 
-include(./Common.cmake)
+include(cmake/Common.cmake)
 
-add_executable(echo-server echo-server.cpp util.cpp SocketClient.cpp SocketServer.cpp)
+add_subdirectory(src)

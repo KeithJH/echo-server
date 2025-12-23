@@ -1,7 +1,7 @@
+#include <EchoServer/SocketClient.hpp>
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "SocketClient.hpp"
 #include "util.hpp"
 
 SocketClient::SocketClient(int fd) : _clientFd(fd) {}
