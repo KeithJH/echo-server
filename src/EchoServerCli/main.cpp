@@ -1,3 +1,4 @@
+#include <EchoServer/Logger.hpp>
 #include <EchoServer/SocketClient.hpp>
 #include <EchoServer/SocketServer.hpp>
 #include <atomic>
@@ -10,25 +11,30 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-// TODO: Handle this better. Could register this with an EchoServer::Logger?
-void printInfo(const char *info) { std::fputs(info, stdout); }
-void printError(const char *error) { std::fputs(error, stderr); }
+class ConsoleLogger : public EchoServer::Logger
+{
+	public:
+	void PrintInfo(const char *info) override { std::fputs(info, stdout); }
+	void PrintError(const char *error) override { std::fputs(error, stderr); }
+};
 
+ConsoleLogger logger{};
 static std::atomic<bool> handlingClients = true;
+
 void signalHandler([[maybe_unused]] int signal)
 {
 	handlingClients = false;
-	printInfo("Program signaled to stop. Will continue until current iteration completes\n");
+	logger.PrintInfo("Program signaled to stop. Will continue until current iteration completes.\n");
 }
 
 int main()
 {
 #if 0
-	EchoServer::UnixSocketServer server{std::filesystem::path{"/dev/shm/my.sock"}};
+	EchoServer::UnixSocketServer server{&logger, std::filesystem::path{"/dev/shm/my.sock"}};
 	if (!server.Initialize())
 		return 1;
 #else
-	EchoServer::InetSocketServer server{};
+	EchoServer::InetSocketServer server{&logger};
 	if (!server.Initialize(INADDR_ANY, 9090))
 		return 1;
 #endif

@@ -1,24 +1,26 @@
+#include <EchoServer/Logger.hpp>
 #include <EchoServer/SocketServer.hpp>
 #include <netinet/in.h>
 #include <sys/un.h>
 
-#include "util.hpp"
-
-namespace EchoServer {
+namespace EchoServer
+{
 // ----------------------------------------------------------------------------
 // SocketServer ---------------------------------------------------------------
 // ----------------------------------------------------------------------------
+SocketServer::SocketServer(Logger *logger) : _logger(logger) {}
+
 SocketServer::~SocketServer()
 {
 	if (_socketFd != -1)
 	{
 		if (::close(_socketFd) == -1)
 		{
-			printError("Could not close server socket\n");
+			_logger->PrintError("Could not close server socket\n");
 		}
 		else
 		{
-			printInfo("Socket closed\n");
+			_logger->PrintInfo("Socket closed\n");
 		}
 	}
 }
@@ -28,24 +30,24 @@ std::unique_ptr<SocketClient> SocketServer::AcceptClient()
 	int clientFd = ::accept(_socketFd, nullptr, nullptr);
 	if (clientFd == -1)
 	{
-		printError("Failed to accept a client connection\n");
+		_logger->PrintError("Failed to accept a client connection\n");
 		return nullptr;
 	}
 
-	return std::make_unique<SocketClient>(clientFd);
+	return std::make_unique<SocketClient>(_logger, clientFd);
 }
 
 bool SocketServer::InternalInitialize(const sockaddr *socketAddress, const socklen_t socketAddressSize)
 {
 	if (::bind(_socketFd, socketAddress, socketAddressSize) == -1)
 	{
-		printError("Could not bind to server socket\n");
+		_logger->PrintError("Could not bind to server socket\n");
 		return false;
 	}
 
 	if (::listen(_socketFd, 0) == -1)
 	{
-		printError("Could not listen on server socket\n");
+		_logger->PrintError("Could not listen on server socket\n");
 		return false;
 	}
 
@@ -55,12 +57,13 @@ bool SocketServer::InternalInitialize(const sockaddr *socketAddress, const sockl
 // ----------------------------------------------------------------------------
 // InetSocketServer -----------------------------------------------------------
 // ----------------------------------------------------------------------------
+InetSocketServer::InetSocketServer(Logger *logger) : SocketServer(logger) {}
 bool InetSocketServer::Initialize(unsigned int address, unsigned short port)
 {
 	_socketFd = ::socket(AF_INET, SOCK_STREAM, 0);
 	if (_socketFd == -1)
 	{
-		printError("Could not create server socket\n");
+		_logger->PrintError("Could not create server socket\n");
 		return false;
 	}
 
@@ -75,7 +78,9 @@ bool InetSocketServer::Initialize(unsigned int address, unsigned short port)
 // ----------------------------------------------------------------------------
 // UnixSocketServer -----------------------------------------------------------
 // ----------------------------------------------------------------------------
-UnixSocketServer::UnixSocketServer(std::filesystem::path path) : _socketPath(path) {}
+UnixSocketServer::UnixSocketServer(Logger *logger, std::filesystem::path path) : SocketServer(logger), _socketPath(path)
+{
+}
 
 UnixSocketServer::~UnixSocketServer()
 {
@@ -83,11 +88,11 @@ UnixSocketServer::~UnixSocketServer()
 	{
 		if (::unlink(_socketPath.c_str()) == -1)
 		{
-			printError("Could not unlink socket path\n");
+			_logger->PrintError("Could not unlink socket path\n");
 		}
 		else
 		{
-			printInfo("Unix socket unlinked\n");
+			_logger->PrintInfo("Unix socket unlinked\n");
 		}
 	}
 }
@@ -97,7 +102,7 @@ bool UnixSocketServer::Initialize()
 	_socketFd = ::socket(AF_UNIX, SOCK_STREAM, 0);
 	if (_socketFd == -1)
 	{
-		printError("Could not create server socket\n");
+		_logger->PrintError("Could not create server socket\n");
 		return false;
 	}
 
@@ -109,4 +114,4 @@ bool UnixSocketServer::Initialize()
 
 	return InternalInitialize(reinterpret_cast<sockaddr *>(&serverAddress), sizeof(serverAddress));
 }
-}
+} // namespace EchoServer

@@ -1,15 +1,17 @@
 #pragma once
 
+#include <EchoServer/Logger.hpp>
+#include <EchoServer/SocketClient.hpp>
 #include <filesystem>
 #include <memory>
 #include <sys/socket.h>
 
-#include "SocketClient.hpp"
-
-namespace EchoServer {
+namespace EchoServer
+{
 class SocketServer
 {
 	public:
+	SocketServer(Logger *logger);
 	virtual ~SocketServer();
 	std::unique_ptr<SocketClient> AcceptClient();
 
@@ -17,19 +19,21 @@ class SocketServer
 	bool InternalInitialize(const sockaddr *socketAddress, const socklen_t socketAddressSize);
 
 	protected:
+	Logger *_logger;
 	int _socketFd = -1;
 };
 
 class InetSocketServer : public SocketServer
 {
 	public:
+	InetSocketServer(Logger *logger);
 	bool Initialize(unsigned int address, unsigned short port);
 };
 
 class UnixSocketServer : public SocketServer
 {
 	public:
-	UnixSocketServer(std::filesystem::path path);
+	UnixSocketServer(Logger *logger, std::filesystem::path path);
 	virtual ~UnixSocketServer();
 
 	bool Initialize();
@@ -37,4 +41,4 @@ class UnixSocketServer : public SocketServer
 	private:
 	std::filesystem::path _socketPath;
 };
-}
+} // namespace EchoServer

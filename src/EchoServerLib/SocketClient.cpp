@@ -2,17 +2,16 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "util.hpp"
-
-namespace EchoServer {
-SocketClient::SocketClient(int fd) : _clientFd(fd) {}
+namespace EchoServer
+{
+SocketClient::SocketClient(Logger *logger, int fd) : _logger(logger), _clientFd(fd) {}
 SocketClient::~SocketClient()
 {
 	if (_clientFd != -1)
 	{
 		if (::close(_clientFd) == -1)
 		{
-			printError("Could not close client\n");
+			_logger->PrintError("Could not close client\n");
 		}
 	}
 }
@@ -29,7 +28,7 @@ bool SocketClient::ReadAndWrite()
 				::send(_clientFd, _buffer + writtenBytes, static_cast<size_t>(readBytes - writtenBytes), 0);
 			if (partialWrittenBytes <= 0)
 			{
-				printError("Failed to send bytes to client\n");
+				_logger->PrintError("Failed to send bytes to client\n");
 				return false;
 			}
 
@@ -39,13 +38,13 @@ bool SocketClient::ReadAndWrite()
 
 	if (readBytes == 0)
 	{
-		printInfo("EOF from client connection\n");
+		_logger->PrintInfo("EOF from client connection\n");
 		return true;
 	}
 	else
 	{
-		printError("Failed to read from client connection\n");
+		_logger->PrintError("Failed to read from client connection\n");
 		return false;
 	}
 }
-}
+} // namespace EchoServer
