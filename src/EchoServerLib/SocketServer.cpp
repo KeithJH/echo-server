@@ -57,8 +57,11 @@ bool SocketServer::InternalInitialize(const sockaddr *socketAddress, const sockl
 // ----------------------------------------------------------------------------
 // InetSocketServer -----------------------------------------------------------
 // ----------------------------------------------------------------------------
-InetSocketServer::InetSocketServer(Logger *logger) : SocketServer(logger) {}
-bool InetSocketServer::Initialize(unsigned int address, unsigned short port)
+InetSocketServer::InetSocketServer(Logger *logger, unsigned int address, unsigned short port)
+	: SocketServer(logger), _address(address), _port(port)
+{
+}
+bool InetSocketServer::Initialize()
 {
 	_socketFd = ::socket(AF_INET, SOCK_STREAM, 0);
 	if (_socketFd == -1)
@@ -69,8 +72,8 @@ bool InetSocketServer::Initialize(unsigned int address, unsigned short port)
 
 	sockaddr_in serverAddress{};
 	serverAddress.sin_family = AF_INET;
-	serverAddress.sin_port = htons(port);
-	serverAddress.sin_addr.s_addr = address;
+	serverAddress.sin_port = htons(_port);
+	serverAddress.sin_addr.s_addr = _address;
 
 	return InternalInitialize(reinterpret_cast<sockaddr *>(&serverAddress), sizeof(serverAddress));
 }

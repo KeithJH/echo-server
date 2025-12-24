@@ -13,6 +13,7 @@ class SocketServer
 	public:
 	SocketServer(Logger *logger);
 	virtual ~SocketServer();
+	virtual bool Initialize() = 0;
 	std::unique_ptr<SocketClient> AcceptClient();
 
 	protected:
@@ -26,8 +27,11 @@ class SocketServer
 class InetSocketServer : public SocketServer
 {
 	public:
-	InetSocketServer(Logger *logger);
-	bool Initialize(unsigned int address, unsigned short port);
+	InetSocketServer(Logger *logger, unsigned int address, unsigned short port);
+	bool Initialize() override;
+
+	unsigned int _address;
+	unsigned short _port;
 };
 
 class UnixSocketServer : public SocketServer
@@ -36,7 +40,7 @@ class UnixSocketServer : public SocketServer
 	UnixSocketServer(Logger *logger, std::filesystem::path path);
 	virtual ~UnixSocketServer();
 
-	bool Initialize();
+	bool Initialize() override;
 
 	private:
 	std::filesystem::path _socketPath;
