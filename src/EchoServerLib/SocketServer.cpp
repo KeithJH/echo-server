@@ -4,6 +4,7 @@
 
 #include "util.hpp"
 
+namespace EchoServer {
 // ----------------------------------------------------------------------------
 // SocketServer ---------------------------------------------------------------
 // ----------------------------------------------------------------------------
@@ -107,4 +108,5 @@ bool UnixSocketServer::Initialize()
 	strncpy(serverAddress.sun_path, pathStringView.data(), pathStringView.length());
 
 	return InternalInitialize(reinterpret_cast<sockaddr *>(&serverAddress), sizeof(serverAddress));
+}
 }

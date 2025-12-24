@@ -6,6 +6,7 @@
 
 #include "SocketClient.hpp"
 
+namespace EchoServer {
 class SocketServer
 {
 	public:
@@ -36,3 +37,4 @@ class UnixSocketServer : public SocketServer
 	private:
 	std::filesystem::path _socketPath;
 };
+}

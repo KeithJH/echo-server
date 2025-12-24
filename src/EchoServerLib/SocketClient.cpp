@@ -4,6 +4,7 @@
 
 #include "util.hpp"
 
+namespace EchoServer {
 SocketClient::SocketClient(int fd) : _clientFd(fd) {}
 SocketClient::~SocketClient()
 {
@@ -46,4 +47,5 @@ bool SocketClient::ReadAndWrite()
 		printError("Failed to read from client connection\n");
 		return false;
 	}
+}
 }
