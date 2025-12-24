@@ -1,5 +1,7 @@
 #include <EchoServer/SocketClient.hpp>
 #include <EchoServer/SocketServer.hpp>
+#include <atomic>
+#include <csignal>
 #include <cstdio>
 #include <filesystem>
 #include <memory>
@@ -7,6 +9,17 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+// TODO: Handle this better. Could register this with an EchoServer::Logger?
+void printInfo(const char *info) { std::fputs(info, stdout); }
+void printError(const char *error) { std::fputs(error, stderr); }
+
+static std::atomic<bool> handlingClients = true;
+void signalHandler([[maybe_unused]] int signal)
+{
+	handlingClients = false;
+	printInfo("Program signaled to stop. Will continue until current iteration completes\n");
+}
 
 int main()
 {
@@ -20,7 +33,10 @@ int main()
 		return 1;
 #endif
 
-	// TODO: Loop over multiple clients, with a signal to quit
+	// TODO: Better stop condition
+	// TODO: Handle multiple clients at once
+	signal(SIGINT, signalHandler);
+	while (handlingClients)
 	{
 		std::unique_ptr<EchoServer::SocketClient> client = server.AcceptClient();
 		if (!client)
