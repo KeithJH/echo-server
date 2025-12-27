@@ -19,14 +19,18 @@ SocketClient::~SocketClient()
 
 SocketClient::IoStatus SocketClient::ReadAndWriteBlocking()
 {
-	ssize_t readBytes = ::recv(_clientFd, _buffer, sizeof(_buffer), 0);
-	for (; readBytes > 0; readBytes = ::recv(_clientFd, _buffer, sizeof(_buffer), 0))
+	// We always empty the buffer or error out,
+	// so no need to retain across calls
+	char buffer[1 << 20];
+
+	ssize_t readBytes = ::recv(_clientFd, buffer, sizeof(buffer), 0);
+	for (; readBytes > 0; readBytes = ::recv(_clientFd, buffer, sizeof(buffer), 0))
 	{
 		ssize_t writtenBytes{0};
 		while (writtenBytes < readBytes)
 		{
 			ssize_t partialWrittenBytes =
-				::send(_clientFd, _buffer + writtenBytes, static_cast<size_t>(readBytes - writtenBytes), 0);
+				::send(_clientFd, buffer + writtenBytes, static_cast<size_t>(readBytes - writtenBytes), 0);
 			if (partialWrittenBytes <= 0)
 			{
 				_logger->PrintError("Failed to send bytes to client\n");
@@ -51,14 +55,18 @@ SocketClient::IoStatus SocketClient::ReadAndWriteBlocking()
 
 SocketClient::IoStatus SocketClient::ReadNonBlockingAndWriteBlocking()
 {
-	ssize_t readBytes = ::recv(_clientFd, _buffer, sizeof(_buffer), MSG_DONTWAIT);
-	for (; readBytes > 0; readBytes = ::recv(_clientFd, _buffer, sizeof(_buffer), MSG_DONTWAIT))
+	// We always empty the buffer or error out,
+	// so no need to retain across calls
+	char buffer[1 << 20];
+
+	ssize_t readBytes = ::recv(_clientFd, buffer, sizeof(buffer), MSG_DONTWAIT);
+	for (; readBytes > 0; readBytes = ::recv(_clientFd, buffer, sizeof(buffer), MSG_DONTWAIT))
 	{
 		ssize_t writtenBytes{0};
 		while (writtenBytes < readBytes)
 		{
 			ssize_t partialWrittenBytes =
-				::send(_clientFd, _buffer + writtenBytes, static_cast<size_t>(readBytes - writtenBytes), 0);
+				::send(_clientFd, buffer + writtenBytes, static_cast<size_t>(readBytes - writtenBytes), 0);
 			if (partialWrittenBytes <= 0)
 			{
 				_logger->PrintError("Failed to send bytes to client\n");
