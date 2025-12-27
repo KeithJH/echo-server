@@ -10,7 +10,9 @@ class SocketClient
 	SocketClient(Logger *logger, int fd);
 	~SocketClient();
 
-	bool ReadAndWrite();
+	enum IoStatus { WouldBlock = -2, Failed = -1, Eof = 0 };
+	IoStatus ReadAndWriteBlocking();
+	IoStatus ReadNonBlockingAndWriteBlocking();
 
 	private:
 	Logger *_logger;

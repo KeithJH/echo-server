@@ -1,4 +1,5 @@
 #include <EchoServer/SocketClient.hpp>
+#include <cerrno>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -16,7 +17,7 @@ SocketClient::~SocketClient()
 	}
 }
 
-bool SocketClient::ReadAndWrite()
+SocketClient::IoStatus SocketClient::ReadAndWriteBlocking()
 {
 	ssize_t readBytes = ::recv(_clientFd, _buffer, sizeof(_buffer), 0);
 	for (; readBytes > 0; readBytes = ::recv(_clientFd, _buffer, sizeof(_buffer), 0))
@@ -29,7 +30,7 @@ bool SocketClient::ReadAndWrite()
 			if (partialWrittenBytes <= 0)
 			{
 				_logger->PrintError("Failed to send bytes to client\n");
-				return false;
+				return SocketClient::IoStatus::Failed;
 			}
 
 			writtenBytes += partialWrittenBytes;
@@ -39,12 +40,44 @@ bool SocketClient::ReadAndWrite()
 	if (readBytes == 0)
 	{
 		_logger->PrintInfo("EOF from client connection\n");
-		return true;
+		return SocketClient::IoStatus::Eof;
 	}
 	else
 	{
 		_logger->PrintError("Failed to read from client connection\n");
-		return false;
+		return SocketClient::IoStatus::Failed;
 	}
 }
+
+SocketClient::IoStatus SocketClient::ReadNonBlockingAndWriteBlocking()
+{
+	ssize_t readBytes = ::recv(_clientFd, _buffer, sizeof(_buffer), MSG_DONTWAIT);
+	for (; readBytes > 0; readBytes = ::recv(_clientFd, _buffer, sizeof(_buffer), MSG_DONTWAIT))
+	{
+		ssize_t writtenBytes{0};
+		while (writtenBytes < readBytes)
+		{
+			ssize_t partialWrittenBytes =
+				::send(_clientFd, _buffer + writtenBytes, static_cast<size_t>(readBytes - writtenBytes), 0);
+			if (partialWrittenBytes <= 0)
+			{
+				_logger->PrintError("Failed to send bytes to client\n");
+				return SocketClient::IoStatus::Failed;
+			}
+
+			writtenBytes += partialWrittenBytes;
+		}
+	}
+
+	switch (readBytes)
+	{
+	case -1:
+		return errno == EWOULDBLOCK ? SocketClient::IoStatus::WouldBlock : SocketClient::IoStatus::Failed;
+	case 0:
+		return SocketClient::IoStatus::Eof;
+	default:
+		return SocketClient::IoStatus::Failed; // Shouldn't get here
+	}
+}
+
 } // namespace EchoServer

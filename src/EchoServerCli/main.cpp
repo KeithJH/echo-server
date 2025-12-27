@@ -62,15 +62,10 @@ int main(int argc, char **argv)
 		return 1;
 
 	// TODO: Better stop condition
-	// TODO: Handle multiple clients at once
 	signal(SIGINT, signalHandler);
 	while (handlingClients)
 	{
-		std::unique_ptr<EchoServer::SocketClient> client = server->AcceptClient();
-		if (!client)
-			return 1;
-
-		if (!client->ReadAndWrite())
+		if (!server->LoopIteration())
 			return 1;
 	}
 
