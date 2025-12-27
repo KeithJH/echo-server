@@ -18,13 +18,32 @@ class ConsoleLogger : public EchoServer::Logger
 	void PrintError(const char *error) override { std::fputs(error, stderr); }
 };
 
-ConsoleLogger logger{};
+static ConsoleLogger logger{};
 static std::atomic<bool> handlingClients = true;
 
-void signalHandler([[maybe_unused]] int signal)
+static void signalHandler([[maybe_unused]] int signal)
 {
 	handlingClients = false;
 	logger.PrintInfo("Program signaled to stop. Will continue until current iteration completes.\n");
+}
+
+static std::unique_ptr<EchoServer::SocketServer> CreateServerFromArgs(char **argv)
+{
+	switch (argv[1][0])
+	{
+	case 'i':
+	case 'I':
+		return std::make_unique<EchoServer::InetSocketServer>(&logger, INADDR_ANY, atoi(&argv[2][0]));
+
+	case 'u':
+	case 'U':
+		return std::make_unique<EchoServer::UnixSocketServer>(&logger, std::filesystem::path{&argv[2][0]});
+		break;
+
+	default:
+		logger.PrintError("Unknown socket type\n");
+		return nullptr;
+	}
 }
 
 int main(int argc, char **argv)
@@ -37,25 +56,9 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	std::unique_ptr<EchoServer::SocketServer> server;
-	switch (argv[1][0])
-	{
-	case 'i':
-	case 'I':
-		server = std::make_unique<EchoServer::InetSocketServer>(&logger, INADDR_ANY, atoi(&argv[2][0]));
-		break;
+	std::unique_ptr<EchoServer::SocketServer> server = CreateServerFromArgs(argv);
 
-	case 'u':
-	case 'U':
-		server = std::make_unique<EchoServer::UnixSocketServer>(&logger, std::filesystem::path{&argv[2][0]});
-		break;
-
-	default:
-		logger.PrintError("Unknown socket type\n");
-		return 1;
-	}
-
-	if (!server->Initialize())
+	if (!server || !server->Initialize())
 		return 1;
 
 	// TODO: Better stop condition
