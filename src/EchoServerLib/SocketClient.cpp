@@ -72,10 +72,24 @@ SocketClient::IoStatus SocketClient::ReadNonBlockingAndWriteBlocking()
 	switch (readBytes)
 	{
 	case -1:
-		return errno == EWOULDBLOCK ? SocketClient::IoStatus::WouldBlock : SocketClient::IoStatus::Failed;
+#if EWOULDBLOCK != EAGAIN // Avoid warning for "logical 'or' of equal expressions, but remain portable
+		if (errno == EWOULDBLOCK || errno == EAGAIN)
+#else
+		if (errno == EWOULDBLOCK)
+#endif
+		{
+			return SocketClient::IoStatus::WouldBlock;
+		}
+		else
+		{
+			_logger->PrintError("Failed to read from client connection\n");
+			return SocketClient::IoStatus::Failed;
+		}
 	case 0:
+		_logger->PrintInfo("EOF from client connection\n");
 		return SocketClient::IoStatus::Eof;
 	default:
+		_logger->PrintError("Unknown error with client IO\n");
 		return SocketClient::IoStatus::Failed; // Shouldn't get here
 	}
 }
