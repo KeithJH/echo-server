@@ -17,13 +17,13 @@ class ConsoleLogger : public EchoServer::Logger
 	void PrintError(const char *error) override { std::fputs(error, stderr); }
 };
 
-static ConsoleLogger logger{};
+static std::shared_ptr<ConsoleLogger> logger = std::make_shared<ConsoleLogger>();
 static std::stop_source stopSource{};
 
 static void signalHandler([[maybe_unused]] int signal)
 {
 	stopSource.request_stop();
-	logger.PrintInfo("Program signaled to stop. Will continue until current iteration completes.\n");
+	logger->PrintInfo("Program signaled to stop. Will continue until current iteration completes.\n");
 }
 
 static std::unique_ptr<EchoServer::SocketServer> CreateServerFromArgs(char **argv)
@@ -32,17 +32,15 @@ static std::unique_ptr<EchoServer::SocketServer> CreateServerFromArgs(char **arg
 	{
 	case 'i':
 	case 'I':
-		return std::make_unique<EchoServer::InetSocketServer>(&logger, INADDR_ANY, atoi(&argv[2][0]),
-		                                                      stopSource.get_token());
+		return std::make_unique<EchoServer::InetSocketServer>(logger, stopSource.get_token(), INADDR_ANY, atoi(&argv[2][0]));
 
 	case 'u':
 	case 'U':
-		return std::make_unique<EchoServer::UnixSocketServer>(&logger, std::filesystem::path{&argv[2][0]},
-		                                                      stopSource.get_token());
+		return std::make_unique<EchoServer::UnixSocketServer>(logger, stopSource.get_token(), std::filesystem::path{&argv[2][0]});
 		break;
 
 	default:
-		logger.PrintError("Unknown socket type\n");
+		logger->PrintError("Unknown socket type\n");
 		return nullptr;
 	}
 }
@@ -51,9 +49,9 @@ int main(int argc, char **argv)
 {
 	if (argc < 3)
 	{
-		logger.PrintError("Usage: echo-server <socket_type> <argument>\n");
-		logger.PrintError("echo-server inet <port>\n");
-		logger.PrintError("echo-server unix <path>\n");
+		logger->PrintError("Usage: echo-server <socket_type> <argument>\n");
+		logger->PrintError("echo-server inet <port>\n");
+		logger->PrintError("echo-server unix <path>\n");
 		return 1;
 	}
 

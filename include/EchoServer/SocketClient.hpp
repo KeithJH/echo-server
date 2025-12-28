@@ -1,13 +1,14 @@
 #pragma once
 
 #include <EchoServer/Logger.hpp>
+#include <memory>
 
 namespace EchoServer
 {
 class SocketClient
 {
 	public:
-	SocketClient(Logger *logger, int fd);
+	SocketClient(std::shared_ptr<Logger> &logger, int fd);
 	~SocketClient();
 
 	enum IoStatus
@@ -21,7 +22,7 @@ class SocketClient
 
 	private:
 	// TODO: It's not really necessary to keep this per client. Move functions to Server?
-	Logger *_logger;
+	std::shared_ptr<Logger> _logger;
 
 	int _clientFd;
 };

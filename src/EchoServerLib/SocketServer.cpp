@@ -9,7 +9,7 @@ namespace EchoServer
 // ----------------------------------------------------------------------------
 // SocketServer ---------------------------------------------------------------
 // ----------------------------------------------------------------------------
-SocketServer::SocketServer(Logger *logger, std::stop_token stopToken) : _logger(logger), _stopToken(stopToken) {}
+SocketServer::SocketServer(std::shared_ptr<Logger> logger, std::stop_token stopToken) : _logger(logger), _stopToken(stopToken) {}
 
 SocketServer::~SocketServer()
 {
@@ -188,7 +188,7 @@ bool SocketServer::InternalInitialize(const sockaddr *socketAddress, const sockl
 // ----------------------------------------------------------------------------
 // InetSocketServer -----------------------------------------------------------
 // ----------------------------------------------------------------------------
-InetSocketServer::InetSocketServer(Logger *logger, unsigned int address, unsigned short port, std::stop_token stopToken)
+InetSocketServer::InetSocketServer(std::shared_ptr<Logger> logger, std::stop_token stopToken, unsigned int address, unsigned short port)
 	: SocketServer(logger, stopToken), _address(address), _port(port)
 {
 }
@@ -212,7 +212,7 @@ bool InetSocketServer::Initialize()
 // ----------------------------------------------------------------------------
 // UnixSocketServer -----------------------------------------------------------
 // ----------------------------------------------------------------------------
-UnixSocketServer::UnixSocketServer(Logger *logger, std::filesystem::path path, std::stop_token stopToken)
+UnixSocketServer::UnixSocketServer(std::shared_ptr<Logger> logger, std::stop_token stopToken, std::filesystem::path path)
 	: SocketServer(logger, stopToken), _socketPath(path)
 {
 }

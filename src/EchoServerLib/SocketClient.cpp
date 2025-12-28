@@ -5,7 +5,7 @@
 
 namespace EchoServer
 {
-SocketClient::SocketClient(Logger *logger, int fd) : _logger(logger), _clientFd(fd) {}
+SocketClient::SocketClient(std::shared_ptr<Logger> &logger, int fd) : _logger(logger), _clientFd(fd) {}
 SocketClient::~SocketClient()
 {
 	if (_clientFd != -1)

@@ -4,6 +4,7 @@
 #include <EchoServer/SocketClient.hpp>
 #include <condition_variable>
 #include <filesystem>
+#include <memory>
 #include <stop_token>
 #include <sys/epoll.h>
 #include <sys/socket.h>
@@ -16,7 +17,7 @@ namespace EchoServer
 class SocketServer
 {
 	public:
-	SocketServer(Logger *logger, std::stop_token stopToken);
+	SocketServer(std::shared_ptr<Logger> logger, std::stop_token stopToken);
 	virtual ~SocketServer();
 	virtual bool Initialize() = 0;
 	bool AcceptClient();
@@ -31,7 +32,7 @@ class SocketServer
 	static constexpr size_t MAX_WORKER_THREADS = 4;
 
 	protected:
-	Logger *_logger;
+	std::shared_ptr<Logger> _logger;
 	int _socketFd = -1;
 
 	private:
@@ -52,7 +53,7 @@ class SocketServer
 class InetSocketServer : public SocketServer
 {
 	public:
-	InetSocketServer(Logger *logger, unsigned int address, unsigned short port, std::stop_token stopToken);
+	InetSocketServer(std::shared_ptr<Logger> logger, std::stop_token stopToken, unsigned int address, unsigned short port);
 	bool Initialize() override;
 
 	unsigned int _address;
@@ -62,7 +63,7 @@ class InetSocketServer : public SocketServer
 class UnixSocketServer : public SocketServer
 {
 	public:
-	UnixSocketServer(Logger *logger, std::filesystem::path path, std::stop_token stopToken);
+	UnixSocketServer(std::shared_ptr<Logger> logger, std::stop_token stopToken, std::filesystem::path path);
 	virtual ~UnixSocketServer();
 
 	bool Initialize() override;
