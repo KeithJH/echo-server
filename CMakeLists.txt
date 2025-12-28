@@ -8,3 +8,6 @@ project(EchoServer CXX)
 include(cmake/Common.cmake)
 
 add_subdirectory(src)
+
+enable_testing()
+add_subdirectory(test)
