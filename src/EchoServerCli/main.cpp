@@ -1,7 +1,6 @@
 #include <EchoServer/Logger.hpp>
 #include <EchoServer/SocketClient.hpp>
 #include <EchoServer/SocketServer.hpp>
-#include <atomic>
 #include <csignal>
 #include <cstdio>
 #include <filesystem>
@@ -19,11 +18,11 @@ class ConsoleLogger : public EchoServer::Logger
 };
 
 static ConsoleLogger logger{};
-static std::atomic<bool> handlingClients = true;
+static std::stop_source stopSource{};
 
 static void signalHandler([[maybe_unused]] int signal)
 {
-	handlingClients = false;
+	stopSource.request_stop();
 	logger.PrintInfo("Program signaled to stop. Will continue until current iteration completes.\n");
 }
 
@@ -33,11 +32,13 @@ static std::unique_ptr<EchoServer::SocketServer> CreateServerFromArgs(char **arg
 	{
 	case 'i':
 	case 'I':
-		return std::make_unique<EchoServer::InetSocketServer>(&logger, INADDR_ANY, atoi(&argv[2][0]));
+		return std::make_unique<EchoServer::InetSocketServer>(&logger, INADDR_ANY, atoi(&argv[2][0]),
+		                                                      stopSource.get_token());
 
 	case 'u':
 	case 'U':
-		return std::make_unique<EchoServer::UnixSocketServer>(&logger, std::filesystem::path{&argv[2][0]});
+		return std::make_unique<EchoServer::UnixSocketServer>(&logger, std::filesystem::path{&argv[2][0]},
+		                                                      stopSource.get_token());
 		break;
 
 	default:
@@ -61,9 +62,8 @@ int main(int argc, char **argv)
 	if (!server || !server->Initialize())
 		return 1;
 
-	// TODO: Better stop condition
 	signal(SIGINT, signalHandler);
-	while (handlingClients)
+	while (!stopSource.stop_requested())
 	{
 		if (!server->LoopIteration())
 			return 1;

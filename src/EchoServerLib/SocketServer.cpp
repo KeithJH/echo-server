@@ -9,10 +9,25 @@ namespace EchoServer
 // ----------------------------------------------------------------------------
 // SocketServer ---------------------------------------------------------------
 // ----------------------------------------------------------------------------
-SocketServer::SocketServer(Logger *logger) : _logger(logger) {}
+SocketServer::SocketServer(Logger *logger, std::stop_token stopToken) : _logger(logger), _stopToken(stopToken) {}
 
 SocketServer::~SocketServer()
 {
+	// Allow all the threads to stop
+	// TODO: writes are still blocking, so if a client doesn't read we'll still wait...
+	{
+		std::unique_lock lock(_clientMutex);
+
+		_clientsToRequeue.clear();
+		_clientsWithPendingReads.clear();
+		_clientCondition.notify_all();
+	}
+
+	for (size_t i = 0; i < MAX_WORKER_THREADS; i++)
+	{
+		_clientWorkers[i].join();
+	}
+
 	if (_socketFd != -1)
 	{
 		if (::close(_socketFd) == -1)
@@ -36,7 +51,7 @@ bool SocketServer::AcceptClient()
 	}
 
 	epoll_event epollEvent{};
-	epollEvent.events = EPOLLIN; // TODO: Edge trigger, EPOLLET
+	epollEvent.events = EPOLLIN | EPOLLET;
 	epollEvent.data.fd = clientFd;
 	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, clientFd, &epollEvent) == -1)
 	{
@@ -47,6 +62,54 @@ bool SocketServer::AcceptClient()
 
 	_clients.try_emplace(clientFd, _logger, clientFd);
 	return true;
+}
+
+void SocketServer::ThreadFunc()
+{
+	while (!_stopToken.stop_requested())
+	{
+		int clientFd = -1;
+		{
+			std::unique_lock lock(_clientMutex);
+
+			if (_clientsWithPendingReads.empty())
+			{
+				_clientCondition.wait(lock,
+				                      [&] { return !_clientsWithPendingReads.empty() || _stopToken.stop_requested(); });
+
+				if (_stopToken.stop_requested())
+					return;
+			}
+
+			clientFd = _clientsWithPendingReads.extract(std::begin(_clientsWithPendingReads)).value();
+			_clientsInProgress.emplace(clientFd);
+		}
+
+		auto mappedClient = _clients.find(clientFd);
+		if (mappedClient != _clients.end())
+		{
+			switch (mappedClient->second.ReadNonBlockingAndWriteBlocking())
+			{
+			case SocketClient::WouldBlock:
+			case SocketClient::Failed:
+				break;
+			case SocketClient::Eof:
+				_clients.erase(clientFd);
+				break;
+			}
+		}
+
+		{
+			std::unique_lock lock(_clientMutex);
+			auto inProgressNode = _clientsInProgress.extract(clientFd);
+			auto requeueNode = _clientsToRequeue.extract(clientFd);
+			if (!requeueNode.empty())
+			{
+				// TODO: just handle it ourself, skipping taking the lock again?
+				_clientsWithPendingReads.emplace(clientFd);
+			}
+		}
+	}
 }
 
 bool SocketServer::LoopIteration()
@@ -67,24 +130,16 @@ bool SocketServer::LoopIteration()
 		else
 		{
 			const int clientFd = _epollEvents[i].data.fd;
+			std::unique_lock lock(_clientMutex);
 
-			auto mappedClient = _clients.find(clientFd);
-			if (mappedClient != _clients.end())
+			if (_clientsInProgress.contains(clientFd))
 			{
-				switch (mappedClient->second.ReadNonBlockingAndWriteBlocking())
-				{
-				case SocketClient::WouldBlock:
-					break;
-				case SocketClient::Failed:
-					break;
-				case SocketClient::Eof:
-					_clients.erase(clientFd);
-					break;
-				}
+				_clientsToRequeue.emplace(clientFd);
 			}
 			else
 			{
-				_logger->PrintError("Recieved a poll event for an unknown client\n");
+				_clientsWithPendingReads.emplace(clientFd);
+				_clientCondition.notify_one();
 			}
 		}
 	}
@@ -122,14 +177,19 @@ bool SocketServer::InternalInitialize(const sockaddr *socketAddress, const sockl
 		return false;
 	}
 
+	for (size_t i = 0; i < MAX_WORKER_THREADS; i++)
+	{
+		_clientWorkers[i] = std::thread(&SocketServer::ThreadFunc, this);
+	}
+
 	return true;
 }
 
 // ----------------------------------------------------------------------------
 // InetSocketServer -----------------------------------------------------------
 // ----------------------------------------------------------------------------
-InetSocketServer::InetSocketServer(Logger *logger, unsigned int address, unsigned short port)
-	: SocketServer(logger), _address(address), _port(port)
+InetSocketServer::InetSocketServer(Logger *logger, unsigned int address, unsigned short port, std::stop_token stopToken)
+	: SocketServer(logger, stopToken), _address(address), _port(port)
 {
 }
 bool InetSocketServer::Initialize()
@@ -152,7 +212,8 @@ bool InetSocketServer::Initialize()
 // ----------------------------------------------------------------------------
 // UnixSocketServer -----------------------------------------------------------
 // ----------------------------------------------------------------------------
-UnixSocketServer::UnixSocketServer(Logger *logger, std::filesystem::path path) : SocketServer(logger), _socketPath(path)
+UnixSocketServer::UnixSocketServer(Logger *logger, std::filesystem::path path, std::stop_token stopToken)
+	: SocketServer(logger, stopToken), _socketPath(path)
 {
 }
 
