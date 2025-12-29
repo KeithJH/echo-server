@@ -1,4 +1,5 @@
 # echo-server
+[![Build and Test](https://github.com/KeithJH/echo-server/actions/workflows/cmake-single-platform.yml/badge.svg)](https://github.com/KeithJH/echo-server/actions/workflows/cmake-single-platform.yml)
 ## Goal
 Explore and demonstrate creating a simple "echo server" with sockets and
 edge-triggered polling. Connecting to the server over unix sockets or IPv4
