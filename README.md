@@ -7,7 +7,14 @@ clients with work distributed over a number of worker threads, though the
 number of clients can be larger than the number of worker threads.
 
 ## Dependencies
-Currently does not have any external dependencies.
+Currently does not use any third-party libraries and is a self-contained build.
+
+Building requires `cmake`, a supported build system (like `make` or `ninja`), and a c++ compiler (like `g++` or `clang++`).
+```
+# pacman -S cmake make gcc
+# dnf install cmake make g++
+# apt install cmake make g++
+```
 
 ## Building
 Built using CMake, with optional presets for `debug` and `release`. Only tested
